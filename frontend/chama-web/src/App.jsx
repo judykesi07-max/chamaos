@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-// NO LAPTOP NEEDED - All data lives in the phone
 function App() {
   const [members, setMembers] = useState(() => {
     try { return JSON.parse(localStorage.getItem("chama_members_offline") || "[]"); } catch { return []; }
@@ -20,7 +19,6 @@ function App() {
   const [tempName, setTempName] = useState("");
   const [receipt, setReceipt] = useState(null);
   const [showCoreTeam, setShowCoreTeam] = useState(false);
-
   const [language, setLanguage] = useState(() => localStorage.getItem("chama_lang") || "en");
   const setLang = (l) => { setLanguage(l); localStorage.setItem("chama_lang", l); };
 
@@ -105,13 +103,10 @@ function App() {
   const t = T[language];
 
   // ===== FIX: PER-CHAMA CORE TEAM & PASSCODES =====
-  // Old bug: one global coreTeam for whole phone, so Kevin in Umoja blocked Carolyne in Kilifi
-  // New: { "umojachama": {treasurer:"Kevin"...}, "kilifichama": {treasurer:"Carolyne"...} }
   const [allCoreTeams, setAllCoreTeams] = useState(() => {
     try {
       const byChama = JSON.parse(localStorage.getItem("chama_coreTeams_by_chama") || "{}");
       if (Object.keys(byChama).length > 0) return byChama;
-      // One-time migration from old global key
       const old = JSON.parse(localStorage.getItem("chama_coreTeam") || "null");
       if (old && (old.treasurer || old.chair || old.secretary)) {
         const oldChama = (localStorage.getItem("chama_myChamaName") || "Umoja Chama").toLowerCase().trim();
@@ -133,7 +128,6 @@ function App() {
     } catch { return {}; }
   });
 
-  // Which chama are we looking at? Typed name on login screen, else logged-in chama
   const currentChamaKey = (tempChamaName.trim() || myChamaName || "Umoja Chama").toLowerCase().trim();
   const coreTeam = allCoreTeams[currentChamaKey] || { treasurer: "", chair: "", secretary: "" };
   const roleCodes = allRoleCodes[currentChamaKey] || { treasurer: "", chair: "", secretary: "" };
@@ -152,16 +146,18 @@ function App() {
     localStorage.setItem("chama_roleCodes_by_chama", JSON.stringify(updated));
     localStorage.setItem("chama_roleCodes", JSON.stringify(c));
   };
-
   const isTrustedDevice = (role, personName, chamaKeyOverride) => {
     if (!personName) return false;
     const key = (chamaKeyOverride || currentChamaKey).toLowerCase().trim();
     return localStorage.getItem(`chama_trusted_${key}_${role}_${personName.toLowerCase()}`) === "yes";
   };
 
-  const isTreasurer = myRole === "treasurer" && (coreTeam.treasurer === "" || coreTeam.treasurer.toLowerCase() === myName.toLowerCase());
-  const isChair = myRole === "chair" && (coreTeam.chair === "" || coreTeam.chair.toLowerCase() === myName.toLowerCase());
-  const isSecretary = myRole === "secretary" && (coreTeam.secretary === "" || coreTeam.secretary.toLowerCase() === myName.toLowerCase());
+  // ===== FIX 2: STRICT ROLE CHECK - Member can NEVER approve =====
+  // Old bug: if seat was "" (vacant), anyone claiming role was treated as leader
+  // New: you are leader ONLY if coreTeam says your exact name
+  const isTreasurer = myRole === "treasurer" && !!myName && !!coreTeam.treasurer && coreTeam.treasurer.toLowerCase() === myName.toLowerCase();
+  const isChair = myRole === "chair" && !!myName && !!coreTeam.chair && coreTeam.chair.toLowerCase() === myName.toLowerCase();
+  const isSecretary = myRole === "secretary" && !!myName && !!coreTeam.secretary && coreTeam.secretary.toLowerCase() === myName.toLowerCase();
   const isCoreMember = isTreasurer || isChair || isSecretary;
 
   const [weeklyPaid, setWeeklyPaid] = useState(() => {
@@ -193,9 +189,21 @@ function App() {
   const saveWeekly = (w) => { setWeeklyPaid(w); localStorage.setItem("chama_weekly", JSON.stringify(w)); };
   const saveLoans = (l) => { setLoanRequests(l); localStorage.setItem("chama_loans", JSON.stringify(l)); };
   const saveMerry = (o, idx) => { setMerryOrder(o); setMerryIndex(idx); localStorage.setItem("chama_merry", JSON.stringify(o)); localStorage.setItem("chama_merry_index", String(idx)); };
-  const saveMembers = (list) => { setMembers(list); localStorage.setItem("chama_members_offline", JSON.stringify(list)); };
+
+  // ===== FIX 3: DEDUPE MEMBERS - prevents resign / double-add creating ghost members =====
+  const saveMembers = (list) => {
+    const seen = new Set();
+    const deduped = [];
+    for (const m of list) {
+      const key = (m.name || "").toLowerCase().trim() + "|" + (m.phone || "").trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(m);
+    }
+    setMembers(deduped); localStorage.setItem("chama_members_offline", JSON.stringify(deduped));
+  };
   const loadMembers = () => {
-    try { const cached = JSON.parse(localStorage.getItem("chama_members_offline") || "[]"); setMembers(cached); } catch {}
+    try { const cached = JSON.parse(localStorage.getItem("chama_members_offline") || "[]"); saveMembers(cached); } catch {}
   };
   useEffect(() => { loadMembers(); }, []);
 
@@ -204,6 +212,7 @@ function App() {
   const paidCount = members.filter(m => weeklyPaid[m.id]).length;
   const notPaid = members.filter(m => !weeklyPaid[m.id]);
   const expectedThisWeek = members.length * settings.weeklyAmount;
+  // FIX 1: Collected = paidCount * weeklyAmount ONLY. No double counting.
   const collectedThisWeek = paidCount * settings.weeklyAmount;
 
   const addHistory = (text, type) => {
@@ -218,7 +227,6 @@ function App() {
     const cleanName = tempName.trim();
     const finalChama = tempChamaName.trim() || myChamaName;
     const finalChamaKey = finalChama.toLowerCase().trim();
-    // FIX: Check team for THIS chama only, not global
     const teamForThisChama = allCoreTeams[finalChamaKey] || { treasurer: "", chair: "", secretary: "" };
     const codesForThisChama = allRoleCodes[finalChamaKey] || { treasurer: "", chair: "", secretary: "" };
     if (tempRole === "treasurer" && teamForThisChama.treasurer && teamForThisChama.treasurer.toLowerCase() !== cleanName.toLowerCase()) {
@@ -252,6 +260,7 @@ function App() {
     if (tempRole === "treasurer" && !newCore.treasurer) { newCore.treasurer = cleanName; claimed = true; }
     if (tempRole === "chair" && !newCore.chair) { newCore.chair = cleanName; claimed = true; }
     if (tempRole === "secretary" && !newCore.secretary) { newCore.secretary = cleanName; claimed = true; }
+    // FIX 3: Login NEVER adds a member. Only Treasurer Add Member form adds members.
     if (claimed) { saveCoreTeam(newCore, finalChamaKey); addHistory(`👑 ${cleanName} became new ${tempRole.toUpperCase()}`, "member"); }
   };
 
@@ -275,6 +284,7 @@ function App() {
     saveCoreTeam(newCore, myChamaName);
     setMyRole("member");
     localStorage.setItem("chama_myRole", "member");
+    // FIX 3: Resign NEVER touches members list. No new member added.
     addHistory(`📣 ${myName} RESIGNED as ${roleName}`, "member");
     alert(language === "sw" ? `Umejiuzulu kama ${roleName}. Asante! 🙏 Nafasi sasa ni wazi.` : `You have resigned as ${roleName}. Thank you! 🙏 Seat is now vacant.`);
   };
@@ -337,6 +347,7 @@ function App() {
   };
 
   const approveLoan = (req) => {
+    // FIX 2: Double-check - Member can NEVER approve, even if UI shows button
     if (!isTreasurer && !isChair) { alert(language === "sw" ? "Mweka Hazina / Mwenyekiti tu wanaweza kukubali mikopo." : "Only Treasurer / Chair can approve loans."); return; }
     const updatedMembers = members.map(x => x.name === req.name ? { ...x, loanBalance: (x.loanBalance || 0) + req.principal } : x);
     saveMembers(updatedMembers);
@@ -561,7 +572,24 @@ function App() {
               </div>
             )}
             {isTreasurer && (
-              <form onSubmit={(e) => { e.preventDefault(); const newMember = { id: Date.now(), name, phone, totalContributed: Number(amount), loanBalance: 0 }; saveMembers([...members, newMember]); addHistory(`👤 ${name} joined with KES ${Number(amount).toLocaleString()}`, "member"); setName(""); setPhone(""); setAmount(""); }} style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                // FIX 1 + 3: Block duplicate member, and first contribution = this week's payment
+                const clean = name.trim();
+                if (members.some(m => m.name.toLowerCase() === clean.toLowerCase())) {
+                  alert(language === "sw" ? `${clean} tayari yupo!` : `${clean} is already a member!`);
+                  return;
+                }
+                const firstAmt = Number(amount) || 0;
+                const newMember = { id: Date.now(), name: clean, phone, totalContributed: firstAmt, loanBalance: 0 };
+                saveMembers([...members, newMember]);
+                // If they paid >= weekly amount on joining, mark them PAID this week so we don't count 1000 twice
+                if (firstAmt >= settings.weeklyAmount) {
+                  saveWeekly({ ...weeklyPaid, [newMember.id]: true });
+                }
+                addHistory(`👤 ${clean} joined with KES ${firstAmt.toLocaleString()}`, "member");
+                setName(""); setPhone(""); setAmount("");
+              }} style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
                 <h3 style={{ margin: "0 0 12px" }}>{t.addMember}</h3>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <input placeholder={language === "sw" ? "Jina kamili" : "Full name"} value={name} onChange={e=>setName(e.target.value)} required style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
