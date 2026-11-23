@@ -209,7 +209,7 @@ function App() {
 
   const total = members.reduce((s, m) => s + (m.totalContributed || 0), 0);
   const totalLoans = members.reduce((s, m) => s + (m.loanBalance || 0), 0);
- const isPaid = (m) => !!weeklyPaid[m.id] || !!m.paidThisWeek;
+ const isPaid = (m) => !!m.paidThisWeek;
 const paidCount = members.filter(isPaid).length;
 const notPaid = members.filter(m => !isPaid(m));
   const expectedThisWeek = members.length * settings.weeklyAmount;
@@ -304,23 +304,23 @@ const notPaid = members.filter(m => !isPaid(m));
   };
 
  const payThisWeek = (m) => {
-    if (weeklyPaid[m.id] || m.paidThisWeek) return;
+       if (m.paidThisWeek) return;
     if (!isTreasurer && m.name.toLowerCase() !== myName.toLowerCase()) { alert(language === "sw" ? "Unaweza kujilipia wewe tu." : "You can only pay for yourself."); return; }
     const confirmPay = window.confirm(language === "sw" ? `M-Pesa STK Push?\n\n${m.name} atalipa KES ${settings.weeklyAmount.toLocaleString()}` : `Simulate M-Pesa STK Push?\n\n${m.name} will pay KES ${settings.weeklyAmount.toLocaleString()}`);
     if (!confirmPay) return;
-    const updatedMembers = members.map(x => x.id === m.id ? { ...x, totalContributed: (x.totalContributed || 0) + settings.weeklyAmount } : x);
+    const updatedMembers = members.map(x => x.id === m.id ? { ...x, totalContributed: (x.totalContributed || 0) + settings.weeklyAmount, paidThisWeek: true } : x);
     saveMembers(updatedMembers);
-    const nw = { ...weeklyPaid, [m.id]: true }; saveWeekly(nw);
     addHistory(`💚 ${m.name} PAID ${t.week} ${weekNumber} — KES ${settings.weeklyAmount.toLocaleString()}`, "contribution");
     setReceipt({ title: `${t.week} ${weekNumber} Payment`, name: m.name, amount: settings.weeklyAmount, type: "contribution", code: "QK" + Math.floor(1000000 + Math.random()*9000000), extra: "M-Pesa Confirmed ✅" });
   };
 
      const nw = Number(weekNumber)+1; setWeekNumber(String(nw)); localStorage.setItem("chama_week", String(nw));
-    saveWeekly({});
+      saveWeekly({});
+    saveMembers(members.map(x => ({ ...x, paidThisWeek: false })));
     // Clear paidThisWeek on all members so next week starts at 0
     const cleared = members.map(x => ({ ...x, paidThisWeek: false }));
     saveMembers(cleared);
-    addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
+       addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
 
   const sendReminder = (m) => {
     const msg = language === "sw"
@@ -581,18 +581,15 @@ const notPaid = members.filter(m => !isPaid(m));
                   return;
                 }
                 const firstAmt = Number(amount) || 0;
-               const newMember = { 
+                   const newMember = { 
   id: Date.now(), 
   name: clean, 
   phone, 
   totalContributed: firstAmt, 
   loanBalance: 0,
-  paidThisWeek: firstAmt >= settings.weeklyAmount ? true : false
+  paidThisWeek: firstAmt >= settings.weeklyAmount
 };
 saveMembers([...members, newMember]);
-if (firstAmt >= settings.weeklyAmount) {
-  saveWeekly({ ...weeklyPaid, [newMember.id]: true });
-}
                 addHistory(`👤 ${clean} joined with KES ${firstAmt.toLocaleString()}`, "member");
                 setName(""); setPhone(""); setAmount("");
               }} style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
@@ -608,7 +605,7 @@ if (firstAmt >= settings.weeklyAmount) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "14px", marginTop: "16px" }}>
               {sorted.map((m) => {
                 const isMe = myName && m.name.toLowerCase()===myName.toLowerCase();
-                const paid = !!weeklyPaid[m.id] || !!m.paidThisWeek;
+                const paid = !!m.paidThisWeek;
                 const canPayThis = !paid && (isTreasurer || isMe);
                 return (
                   <div key={m.id} style={{ background: cardBg, padding: "18px", borderRadius: "20px", border: isMe ? "2px solid #11998e" : "1px solid #EEE" }}>
