@@ -209,8 +209,9 @@ function App() {
 
   const total = members.reduce((s, m) => s + (m.totalContributed || 0), 0);
   const totalLoans = members.reduce((s, m) => s + (m.loanBalance || 0), 0);
-  const paidCount = members.filter(m => weeklyPaid[m.id]).length;
-  const notPaid = members.filter(m => !weeklyPaid[m.id]);
+ const isPaid = (m) => !!weeklyPaid[m.id] || !!m.paidThisWeek;
+const paidCount = members.filter(isPaid).length;
+const notPaid = members.filter(m => !isPaid(m));
   const expectedThisWeek = members.length * settings.weeklyAmount;
   // FIX 1: Collected = paidCount * weeklyAmount ONLY. No double counting.
   const collectedThisWeek = paidCount * settings.weeklyAmount;
@@ -581,12 +582,18 @@ function App() {
                   return;
                 }
                 const firstAmt = Number(amount) || 0;
-                const newMember = { id: Date.now(), name: clean, phone, totalContributed: firstAmt, loanBalance: 0 };
-                saveMembers([...members, newMember]);
-                // If they paid >= weekly amount on joining, mark them PAID this week so we don't count 1000 twice
-                if (firstAmt >= settings.weeklyAmount) {
-                  saveWeekly({ ...weeklyPaid, [newMember.id]: true });
-                }
+               const newMember = { 
+  id: Date.now(), 
+  name: clean, 
+  phone, 
+  totalContributed: firstAmt, 
+  loanBalance: 0,
+  paidThisWeek: firstAmt >= settings.weeklyAmount ? true : false
+};
+saveMembers([...members, newMember]);
+if (firstAmt >= settings.weeklyAmount) {
+  saveWeekly({ ...weeklyPaid, [newMember.id]: true });
+}
                 addHistory(`👤 ${clean} joined with KES ${firstAmt.toLocaleString()}`, "member");
                 setName(""); setPhone(""); setAmount("");
               }} style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
@@ -602,7 +609,7 @@ function App() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "14px", marginTop: "16px" }}>
               {sorted.map((m) => {
                 const isMe = myName && m.name.toLowerCase()===myName.toLowerCase();
-                const paid = !!weeklyPaid[m.id];
+                const paid = !!weeklyPaid[m.id] || !!m.paidThisWeek;
                 const canPayThis = !paid && (isTreasurer || isMe);
                 return (
                   <div key={m.id} style={{ background: cardBg, padding: "18px", borderRadius: "20px", border: isMe ? "2px solid #11998e" : "1px solid #EEE" }}>
