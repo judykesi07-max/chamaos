@@ -209,7 +209,7 @@ function App() {
 
   const total = members.reduce((s, m) => s + (m.totalContributed || 0), 0);
   const totalLoans = members.reduce((s, m) => s + (m.loanBalance || 0), 0);
- const isPaid = (m) => !!m.paidThisWeek;
+  const isPaid = (m) => !!m.paidThisWeek || (m.totalContributed || 0) >= Number(weekNumber) * settings.weeklyAmount;
 const paidCount = members.filter(isPaid).length;
 const notPaid = members.filter(m => !isPaid(m));
   const expectedThisWeek = members.length * settings.weeklyAmount;
@@ -314,14 +314,17 @@ const notPaid = members.filter(m => !isPaid(m));
     setReceipt({ title: `${t.week} ${weekNumber} Payment`, name: m.name, amount: settings.weeklyAmount, type: "contribution", code: "QK" + Math.floor(1000000 + Math.random()*9000000), extra: "M-Pesa Confirmed ✅" });
   };
 
-     const nw = Number(weekNumber)+1; setWeekNumber(String(nw)); localStorage.setItem("chama_week", String(nw));
-      saveWeekly({});
+      const startNewWeek = () => {
+    if (!isTreasurer) { alert(language === "sw" ? "Mweka Hazina tu anaweza kuanza wiki mpya." : "Only Treasurer can start a new week."); return; }
+    if (!window.confirm(language === "sw" ? `Anza Wiki ${Number(weekNumber)+1}?` : `Start Week ${Number(weekNumber)+1}?`)) return;
+    notPaid.forEach(m => addHistory(`⚠️ ${m.name} missed ${t.week} ${weekNumber} — Fine KES ${settings.fineAmount}`, "fine"));
+    const nw = Number(weekNumber)+1;
+    setWeekNumber(String(nw));
+    localStorage.setItem("chama_week", String(nw));
+    saveWeekly({});
     saveMembers(members.map(x => ({ ...x, paidThisWeek: false })));
-    // Clear paidThisWeek on all members so next week starts at 0
-    const cleared = members.map(x => ({ ...x, paidThisWeek: false }));
-    saveMembers(cleared);
-       addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
-
+    addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
+  };
   const sendReminder = (m) => {
     const msg = language === "sw"
       ? `Habari ${m.name}, hii ni ${settings.chamaName}. HUJALIPA KES ${settings.weeklyAmount.toLocaleString()} kwa ${t.week} ${weekNumber} (${settings.meetingDay}). Tafadhali lipa leo. Asante! 💚`
@@ -605,7 +608,7 @@ saveMembers([...members, newMember]);
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "14px", marginTop: "16px" }}>
               {sorted.map((m) => {
                 const isMe = myName && m.name.toLowerCase()===myName.toLowerCase();
-                const paid = !!m.paidThisWeek;
+                               const paid = !!m.paidThisWeek || (m.totalContributed || 0) >= Number(weekNumber) * settings.weeklyAmount;
                 const canPayThis = !paid && (isTreasurer || isMe);
                 return (
                   <div key={m.id} style={{ background: cardBg, padding: "18px", borderRadius: "20px", border: isMe ? "2px solid #11998e" : "1px solid #EEE" }}>
