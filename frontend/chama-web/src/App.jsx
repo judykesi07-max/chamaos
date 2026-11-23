@@ -104,21 +104,60 @@ function App() {
   };
   const t = T[language];
 
-  const [roleCodes, setRoleCodes] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("chama_roleCodes") || JSON.stringify({ treasurer: "", chair: "", secretary: "" })); }
-    catch { return { treasurer: "", chair: "", secretary: "" }; }
+  // ===== FIX: PER-CHAMA CORE TEAM & PASSCODES =====
+  // Old bug: one global coreTeam for whole phone, so Kevin in Umoja blocked Carolyne in Kilifi
+  // New: { "umojachama": {treasurer:"Kevin"...}, "kilifichama": {treasurer:"Carolyne"...} }
+  const [allCoreTeams, setAllCoreTeams] = useState(() => {
+    try {
+      const byChama = JSON.parse(localStorage.getItem("chama_coreTeams_by_chama") || "{}");
+      if (Object.keys(byChama).length > 0) return byChama;
+      // One-time migration from old global key
+      const old = JSON.parse(localStorage.getItem("chama_coreTeam") || "null");
+      if (old && (old.treasurer || old.chair || old.secretary)) {
+        const oldChama = (localStorage.getItem("chama_myChamaName") || "Umoja Chama").toLowerCase().trim();
+        return { [oldChama]: old };
+      }
+      return {};
+    } catch { return {}; }
   });
-  const saveRoleCodes = (c) => { setRoleCodes(c); localStorage.setItem("chama_roleCodes", JSON.stringify(c)); };
-  const isTrustedDevice = (role, personName) => {
-    if (!personName) return false;
-    return localStorage.getItem(`chama_trusted_${role}_${personName.toLowerCase()}`) === "yes";
+  const [allRoleCodes, setAllRoleCodes] = useState(() => {
+    try {
+      const byChama = JSON.parse(localStorage.getItem("chama_roleCodes_by_chama") || "{}");
+      if (Object.keys(byChama).length > 0) return byChama;
+      const old = JSON.parse(localStorage.getItem("chama_roleCodes") || "null");
+      if (old && (old.treasurer || old.chair || old.secretary)) {
+        const oldChama = (localStorage.getItem("chama_myChamaName") || "Umoja Chama").toLowerCase().trim();
+        return { [oldChama]: old };
+      }
+      return {};
+    } catch { return {}; }
+  });
+
+  // Which chama are we looking at? Typed name on login screen, else logged-in chama
+  const currentChamaKey = (tempChamaName.trim() || myChamaName || "Umoja Chama").toLowerCase().trim();
+  const coreTeam = allCoreTeams[currentChamaKey] || { treasurer: "", chair: "", secretary: "" };
+  const roleCodes = allRoleCodes[currentChamaKey] || { treasurer: "", chair: "", secretary: "" };
+
+  const saveCoreTeam = (ct, chamaKeyOverride) => {
+    const key = (chamaKeyOverride || currentChamaKey).toLowerCase().trim();
+    const updated = { ...allCoreTeams, [key]: ct };
+    setAllCoreTeams(updated);
+    localStorage.setItem("chama_coreTeams_by_chama", JSON.stringify(updated));
+    localStorage.setItem("chama_coreTeam", JSON.stringify(ct));
+  };
+  const saveRoleCodes = (c, chamaKeyOverride) => {
+    const key = (chamaKeyOverride || currentChamaKey).toLowerCase().trim();
+    const updated = { ...allRoleCodes, [key]: c };
+    setAllRoleCodes(updated);
+    localStorage.setItem("chama_roleCodes_by_chama", JSON.stringify(updated));
+    localStorage.setItem("chama_roleCodes", JSON.stringify(c));
   };
 
-  const [coreTeam, setCoreTeam] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("chama_coreTeam") || JSON.stringify({ treasurer: "", chair: "", secretary: "" })); }
-    catch { return { treasurer: "", chair: "", secretary: "" }; }
-  });
-  const saveCoreTeam = (ct) => { setCoreTeam(ct); localStorage.setItem("chama_coreTeam", JSON.stringify(ct)); };
+  const isTrustedDevice = (role, personName, chamaKeyOverride) => {
+    if (!personName) return false;
+    const key = (chamaKeyOverride || currentChamaKey).toLowerCase().trim();
+    return localStorage.getItem(`chama_trusted_${key}_${role}_${personName.toLowerCase()}`) === "yes";
+  };
 
   const isTreasurer = myRole === "treasurer" && (coreTeam.treasurer === "" || coreTeam.treasurer.toLowerCase() === myName.toLowerCase());
   const isChair = myRole === "chair" && (coreTeam.chair === "" || coreTeam.chair.toLowerCase() === myName.toLowerCase());
@@ -177,39 +216,43 @@ function App() {
     if (!tempName.trim()) return alert(language === "sw" ? "Tafadhali weka jina lako" : "Please enter your name");
     if (!tempChamaName.trim() && !myChamaName) return alert(language === "sw" ? "Tafadhali weka jina la Chama" : "Please enter your Chama name");
     const cleanName = tempName.trim();
-    if (tempRole === "treasurer" && coreTeam.treasurer && coreTeam.treasurer.toLowerCase() !== cleanName.toLowerCase()) {
-      return alert(language === "sw" ? `❌ Mweka Hazina ni ${coreTeam.treasurer}. Lazima ajiuzulu kwanza.` : `❌ Treasurer is ${coreTeam.treasurer}. They must Resign first.`);
+    const finalChama = tempChamaName.trim() || myChamaName;
+    const finalChamaKey = finalChama.toLowerCase().trim();
+    // FIX: Check team for THIS chama only, not global
+    const teamForThisChama = allCoreTeams[finalChamaKey] || { treasurer: "", chair: "", secretary: "" };
+    const codesForThisChama = allRoleCodes[finalChamaKey] || { treasurer: "", chair: "", secretary: "" };
+    if (tempRole === "treasurer" && teamForThisChama.treasurer && teamForThisChama.treasurer.toLowerCase() !== cleanName.toLowerCase()) {
+      return alert(language === "sw" ? `❌ Mweka Hazina ni ${teamForThisChama.treasurer}. Lazima ajiuzulu kwanza.` : `❌ Treasurer is ${teamForThisChama.treasurer}. They must Resign first.`);
     }
-    if (tempRole === "chair" && coreTeam.chair && coreTeam.chair.toLowerCase() !== cleanName.toLowerCase()) {
-      return alert(language === "sw" ? `❌ Mwenyekiti ni ${coreTeam.chair}. Lazima ajiuzulu kwanza.` : `❌ Chair is ${coreTeam.chair}. They must Resign first.`);
+    if (tempRole === "chair" && teamForThisChama.chair && teamForThisChama.chair.toLowerCase() !== cleanName.toLowerCase()) {
+      return alert(language === "sw" ? `❌ Mwenyekiti ni ${teamForThisChama.chair}. Lazima ajiuzulu kwanza.` : `❌ Chair is ${teamForThisChama.chair}. They must Resign first.`);
     }
-    if (tempRole === "secretary" && coreTeam.secretary && coreTeam.secretary.toLowerCase() !== cleanName.toLowerCase()) {
-      return alert(language === "sw" ? `❌ Katibu ni ${coreTeam.secretary}. Lazima ajiuzulu kwanza.` : `❌ Secretary is ${coreTeam.secretary}. They must Resign first.`);
+    if (tempRole === "secretary" && teamForThisChama.secretary && teamForThisChama.secretary.toLowerCase() !== cleanName.toLowerCase()) {
+      return alert(language === "sw" ? `❌ Katibu ni ${teamForThisChama.secretary}. Lazima ajiuzulu kwanza.` : `❌ Secretary is ${teamForThisChama.secretary}. They must Resign first.`);
     }
     if (["treasurer", "chair", "secretary"].includes(tempRole)) {
-      const savedCode = roleCodes[tempRole];
-      const trusted = isTrustedDevice(tempRole, cleanName);
+      const savedCode = codesForThisChama[tempRole];
+      const trusted = isTrustedDevice(tempRole, cleanName, finalChamaKey);
       if (!savedCode) {
         if (!tempPasscode.trim()) return alert(language === "sw" ? `Wewe ni ${tempRole} mpya! Tafadhali TENGENEZA namba ya siri (namba 4) ambayo wewe tu unaijua.` : `You are the new ${tempRole}! Please CREATE a passcode (4 numbers) that only you will know.`);
         if (tempPasscode.length < 4) return alert(language === "sw" ? "Namba ya siri lazima iwe namba 4" : "Passcode must be at least 4 numbers");
-        saveRoleCodes({ ...roleCodes, [tempRole]: tempPasscode });
-        localStorage.setItem(`chama_trusted_${tempRole}_${cleanName.toLowerCase()}`, "yes");
+        saveRoleCodes({ ...codesForThisChama, [tempRole]: tempPasscode }, finalChamaKey);
+        localStorage.setItem(`chama_trusted_${finalChamaKey}_${tempRole}_${cleanName.toLowerCase()}`, "yes");
       } else if (!trusted) {
         if (tempPasscode !== savedCode) return alert(language === "sw" ? `❌ Namba ya siri si sahihi!` : `❌ Wrong ${tempRole} Passcode!`);
-        localStorage.setItem(`chama_trusted_${tempRole}_${cleanName.toLowerCase()}`, "yes");
+        localStorage.setItem(`chama_trusted_${finalChamaKey}_${tempRole}_${cleanName.toLowerCase()}`, "yes");
       }
     }
-    const finalChama = tempChamaName.trim() || myChamaName;
     setMyName(cleanName); setMyRole(tempRole); setMyChamaName(finalChama);
     localStorage.setItem("chama_myName", cleanName);
     localStorage.setItem("chama_myRole", tempRole);
     localStorage.setItem("chama_myChamaName", finalChama);
     saveSettings({ ...settings, chamaName: finalChama });
-    let newCore = { ...coreTeam }; let claimed = false;
+    let newCore = { ...teamForThisChama }; let claimed = false;
     if (tempRole === "treasurer" && !newCore.treasurer) { newCore.treasurer = cleanName; claimed = true; }
     if (tempRole === "chair" && !newCore.chair) { newCore.chair = cleanName; claimed = true; }
     if (tempRole === "secretary" && !newCore.secretary) { newCore.secretary = cleanName; claimed = true; }
-    if (claimed) { saveCoreTeam(newCore); addHistory(`👑 ${cleanName} became new ${tempRole.toUpperCase()}`, "member"); }
+    if (claimed) { saveCoreTeam(newCore, finalChamaKey); addHistory(`👑 ${cleanName} became new ${tempRole.toUpperCase()}`, "member"); }
   };
 
   const logout = () => {
@@ -227,9 +270,9 @@ function App() {
     else if (isSecretary) { roleName = language === "sw" ? "Katibu" : "Secretary"; roleKey = "secretary"; newCore.secretary = ""; }
     else return;
     if (!window.confirm(language === "sw" ? `Una uhakika unataka KUJIUZULU kama ${roleName}?\n\nNafasi yako itakuwa WAZI.` : `Are you sure you want to RESIGN as ${roleName}?\n\nYour seat will become VACANT.`)) return;
-    let newCodes = { ...roleCodes }; newCodes[roleKey] = ""; saveRoleCodes(newCodes);
-    localStorage.removeItem(`chama_trusted_${roleKey}_${myName.toLowerCase()}`);
-    saveCoreTeam(newCore);
+    let newCodes = { ...roleCodes }; newCodes[roleKey] = ""; saveRoleCodes(newCodes, myChamaName);
+    localStorage.removeItem(`chama_trusted_${myChamaName.toLowerCase().trim()}_${roleKey}_${myName.toLowerCase()}`);
+    saveCoreTeam(newCore, myChamaName);
     setMyRole("member");
     localStorage.setItem("chama_myRole", "member");
     addHistory(`📣 ${myName} RESIGNED as ${roleName}`, "member");
@@ -240,7 +283,7 @@ function App() {
     if (!personName) return;
     if (!window.confirm(language === "sw" ? `Wanachama wamepiga kura? Mchague ${personName} kama ${role} mpya?` : `Members voted? Assign ${personName} as new ${role}?`)) return;
     const newCore = { ...coreTeam, [role]: personName };
-    saveCoreTeam(newCore);
+    saveCoreTeam(newCore, myChamaName);
     addHistory(`🗳️ VOTE: ${personName} is now the new ${role.toUpperCase()}`, "member");
   };
 
