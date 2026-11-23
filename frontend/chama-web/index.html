@@ -1,16 +1,190 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#11998e" />
-    <meta name="description" content="Vidazini Youth Chama - See who paid, who borrowed, where the money is. No fights." />
-    <link rel="manifest" href="/manifest.json" />
-    <title>ChamaOS - Vidazini Youth Chama</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChamaSmart - Umoja Chama</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, Arial, sans-serif; }
+  body { background: #f0fdf4; }
+  .hidden { display: none !important; }
+
+  /* ===== LOGIN PAGE ===== */
+  #loginPage { max-width: 420px; margin: 0 auto; padding: 16px; background: #fff; min-height: 100vh; }
+  .login-top { text-align: center; margin-bottom: 12px; }
+  .login-top h1 { font-size: 28px; color: #065f46; }
+  .login-top p { font-size: 16px; color: #065f46; font-weight: 700; margin-top: 4px; }
+  .login-top small { color: #666; font-size: 13px; display:block; margin-top:6px; line-height:1.4; }
+
+  .vacant-box { background: #fef9c3; border: 1px solid #fde047; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #854d0e; margin: 10px 0; text-align: center; }
+
+  .field-label { font-size: 13px; font-weight: 700; color: #111; margin: 10px 0 4px; display:block; }
+  /* FIXED INPUTS - SMALL, BLACK TEXT, VISIBLE */
+  .input, select.input {
+    width: 100%; height: 44px; padding: 10px 12px;
+    font-size: 15px; color: #000000 !important;
+    background-color: #FFFFFF !important;
+    border: 1px solid #d1d5db; border-radius: 8px; outline: none;
+  }
+  .input::placeholder { color: #9ca3af; }
+  .input:focus { border-color: #16a34a; }
+
+  .chair-code-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px; margin-top: 10px; }
+  .chair-code-box b { font-size: 13px; color: #065f46; }
+
+  .btn-green {
+    width: 100%; height: 48px; background: #16a34a; color: #fff;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
+    margin-top: 14px; cursor: pointer;
+  }
+  .login-footer { text-align: center; font-size: 12px; color: #888; margin-top: 10px; }
+
+  /* ===== DASHBOARD ===== */
+  #dashboard { max-width: 480px; margin: 0 auto; background: #f8fafc; min-height: 100vh; padding-bottom: 80px; }
+  /* FIXED HEADER - LEFT = INFO, RIGHT = BUTTONS */
+  .dash-header { background: #fff; padding: 14px 12px 12px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; border-bottom: 1px solid #e5e7eb; }
+  .dash-left h2 { font-size: 20px; color: #111; }
+  .dash-left p { font-size: 13px; color: #555; margin-top: 2px; }
+  .dash-left .role-badge { display: inline-block; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; margin-top: 6px; }
+
+  /* RIGHT SIDE - ALL PUSHED RIGHT 12px */
+  .dash-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-right: 12px; flex-shrink: 0; }
+  /* FIXED CORE TEAM - DARK GREEN, VISIBLE */
+  .core-team-pill { background: #065f46 !important; color: #FFFFFF !important; font-size: 13px; font-weight: 800; padding: 8px 12px; border-radius: 20px; white-space: nowrap; }
+  .logout-btn { background: #fff; color: #b91c1c; border: 1px solid #fecaca; font-size: 14px; font-weight: 700; padding: 6px 12px; border-radius: 20px; cursor: pointer; }
+  .pdf-btn { background: #111; color: #fff; font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; }
+
+  .resign-box { background: #fff7ed; border: 1px solid #fed7aa; margin: 12px; padding: 10px; border-radius: 10px; font-size: 13px; color: #9a3412; display:flex; justify-content:space-between; align-items:center; }
+  .resign-btn { background: #ea580c; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+  .card { background: #fff; margin: 0 12px 12px; padding: 14px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .card h3 { font-size: 13px; color: #666; }
+  .card .big { font-size: 24px; font-weight: 800; color: #111; margin-top: 4px; }
+  .progress { height: 8px; background: #e5e7eb; border-radius: 10px; margin-top: 8px; overflow: hidden; }
+  .progress > div { height: 100%; background: #16a34a; width: 0%; }
+  .search-input { width: 100%; height: 44px; padding: 10px 12px; font-size: 15px; color: #000; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; }
+
+  /* FIXED BOTTOM TABS - SCROLLABLE, NOT CUT OFF */
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #fff; border-top: 1px solid #e5e7eb; display: flex; overflow-x: auto; white-space: nowrap; padding: 8px 0; }
+  .bottom-nav button { flex: 1; min-width: 90px; background: none; border: none; font-size: 13px; padding: 6px; color: #111; }
+  .bottom-nav button.active { color: #16a34a; font-weight: 800; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-top">
+    <div style="font-size:36px;">💚</div>
+    <h1>Welcome home</h1>
+    <p>Karibu sana! ✨</p>
+    <small>Where family grows together.<br>Umoja Chama • Rongai • Kenya</small>
+  </div>
+
+  <div class="vacant-box" id="vacantText">Current Core Team: Treasurer: VACANT, Chairperson: VACANT, Secretary: VACANT</div>
+
+  <label class="field-label">Your Name</label>
+  <input id="userName" class="input" type="text" placeholder="Enter your full name e.g. Lavine" />
+
+  <label class="field-label">Chama Name</label>
+  <input id="chamaName" class="input" type="text" placeholder="Enter chama name e.g. Nyambane Chama" />
+
+  <label class="field-label">Your Role in Chama</label>
+  <select id="userRole" class="input" onchange="onRoleChange()">
+    <option value="">Select Your Role</option>
+    <option value="Chairperson">🪑 Chairperson</option>
+    <option value="Treasurer">💰 Treasurer</option>
+    <option value="Secretary">📝 Secretary</option>
+    <option value="Member">👤 Member</option>
+  </select>
+
+  <!-- CHAIR CODE - NOW VISIBLE -->
+  <div id="chairCodeBox" class="chair-code-box hidden">
+    <b>CHAIRPERSON (CREATE NEW)</b>
+    <p style="font-size:12px;color:#555;margin:4px 0 6px;">Create a secret code, only you know. You won't need to type it again on this phone.</p>
+    <input id="chairCode" class="input" type="text" placeholder="Enter Chair Code e.g. 1234" />
+  </div>
+
+  <button class="btn-green" onclick="enterChama()">Enter My Chama →</button>
+  <p class="login-footer">No password needed. Just your name and chama name.</p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+  <div class="dash-header">
+    <div class="dash-left">
+      <h2 id="hiName">Hi Lavine 👋</h2>
+      <p id="chamaInfo">Nyambane Chama • Week 1 • Monday</p>
+      <span class="role-badge" id="roleBadge">🪑 CHAIRPERSON</span>
+    </div>
+    <div class="dash-right">
+      <div class="core-team-pill">👑 Core Team</div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+      <button class="pdf-btn" onclick="alert('PDF will download')">📄 PDF</button>
+    </div>
+  </div>
+
+  <div class="resign-box" id="resignBox">
+    <span>You are Chairperson. Want to step down?</span>
+    <button class="resign-btn" onclick="alert('You resigned')">Resign Now</button>
+  </div>
+
+  <div class="card">
+    <h3>WEEK 1 • WEEK COLLECTED</h3>
+    <div class="big">KES 0 / 0</div>
+    <div class="progress"><div></div></div>
+    <p style="font-size:12px;color:#666;margin-top:6px;">Week 1 of 4</p>
+  </div>
+
+  <div class="card">
+    <h3>TOTAL SAVINGS (ALL TIME)</h3>
+    <div class="big">KES 0</div>
+    <p style="font-size:12px;color:#666;">From all members</p>
+  </div>
+
+  <div class="card">
+    <h3>Search member...</h3>
+    <input class="search-input" type="text" placeholder="Search member..." />
+  </div>
+
+  <div  class="bottom-nav">
+    <button class="active">🏠 Home</button>
+    <button>💸 Pay</button>
+    <button>📄 Loans</button>
+    <button>🔄 Merry-Go-Round</button>
+    <button>📊 More</button>
+  </div>
+</div>
+
+<script>
+function onRoleChange(){
+  const role = document.getElementById('userRole').value;
+  document.getElementById('chairCodeBox').classList.toggle('hidden', role !== 'Chairperson');
+}
+function enterChama(){
+  const name = document.getElementById('userName').value.trim();
+  const chama = document.getElementById('chamaName').value.trim();
+  const role = document.getElementById('userRole').value;
+  if(!name){ alert('Please enter your name'); return; }
+  if(!chama){ alert('Please enter chama name'); return; }
+  if(!role){ alert('Please select your role'); return; }
+  if(role === 'Chairperson'){
+    const code = document.getElementById('chairCode').value.trim();
+    if(!code){ alert('Chairperson, please enter a code e.g. 1234'); return; }
+    localStorage.setItem('chairCode', code);
+  }
+  document.getElementById('hiName').innerText = 'Hi ' + name + ' 👋';
+  document.getElementById('chamaInfo').innerText = chama + ' • Week 1 • Monday';
+  document.getElementById('roleBadge').innerText = '🪑 ' + role.toUpperCase();
+  document.getElementById('resignBox').style.display = role === 'Chairperson' ? 'flex' : 'none';
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+function logout(){
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+}
+</script>
+</body>
 </html>

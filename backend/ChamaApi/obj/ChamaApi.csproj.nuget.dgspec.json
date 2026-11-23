@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\USER\\OneDrive\\ChamaOS\\backend\\ChamaApi\\ChamaApi.csproj": {}
+    "C:\\Users\\USER\\OneDrive\\ChamaSmart\\backend\\ChamaApi\\ChamaApi.csproj": {}
   },
   "projects": {
-    "C:\\Users\\USER\\OneDrive\\ChamaOS\\backend\\ChamaApi\\ChamaApi.csproj": {
+    "C:\\Users\\USER\\OneDrive\\ChamaSmart\\backend\\ChamaApi\\ChamaApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\USER\\OneDrive\\ChamaOS\\backend\\ChamaApi\\ChamaApi.csproj",
+        "projectUniqueName": "C:\\Users\\USER\\OneDrive\\ChamaSmart\\backend\\ChamaApi\\ChamaApi.csproj",
         "projectName": "ChamaApi",
-        "projectPath": "C:\\Users\\USER\\OneDrive\\ChamaOS\\backend\\ChamaApi\\ChamaApi.csproj",
+        "projectPath": "C:\\Users\\USER\\OneDrive\\ChamaSmart\\backend\\ChamaApi\\ChamaApi.csproj",
         "packagesPath": "C:\\Users\\USER\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\USER\\OneDrive\\ChamaOS\\backend\\ChamaApi\\obj\\",
+        "outputPath": "C:\\Users\\USER\\OneDrive\\ChamaSmart\\backend\\ChamaApi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

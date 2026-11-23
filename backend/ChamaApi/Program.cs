@@ -2,6 +2,11 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

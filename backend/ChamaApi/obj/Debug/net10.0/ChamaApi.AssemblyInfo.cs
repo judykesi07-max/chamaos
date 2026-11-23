@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ChamaApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e3e93ee687e72d78e1e0648d708a4381c45e24f3")]
 [assembly: System.Reflection.AssemblyProductAttribute("ChamaApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ChamaApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

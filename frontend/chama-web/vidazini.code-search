@@ -1,0 +1,15 @@
+# Query: vidazini
+# ContextLines: 1
+
+6 results - 1 file
+
+frontend\chama-web\src\App.jsx:
+  148        return JSON.parse(localStorage.getItem("chama_settings") || JSON.stringify({
+  149:         chamaName: "ChamaSmart", location: "Kenya", weeklyAmount: 1000, meetingDay: "Monday", darkMode: false, interestRate: 10, fineAmount: 100,
+  150        }));
+  151:     } catch { return { chamaName: "ChamaSmart", location: "Kenya", weeklyAmount: 1000, meetingDay: "Monday", darkMode: false, interestRate: 10, fineAmount: 100 }; }
+  152    });
+
+  369            <label style={{ display: "block", textAlign: "left", fontSize: "13px", fontWeight: "700" }}>{t.chamaName}</label>
+  370:           <input placeholder={language === "sw" ? "mf. ChamaSmart" : "e.g. ChamaSmart"} value={tempChamaName} onChange={e => setTempChamaName(e.target.value)} style={{ width: "100%", padding: "14px", borderRadius: "14px", border: "1.5px solid #E6EDE8", fontSize: "15px", margin: "6px 0 8px" }} />
+  371            <label style={{ display: "block", textAlign: "left", fontSize: "13px", fontWeight: "700" }}>{t.role}</label>
