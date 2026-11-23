@@ -303,8 +303,8 @@ const notPaid = members.filter(m => !isPaid(m));
     const w = window.open("", "_blank"); w.document.write(report); w.document.close(); setTimeout(() => w.print(), 500);
   };
 
-  const payThisWeek = (m) => {
-    if (weeklyPaid[m.id]) return;
+ const payThisWeek = (m) => {
+    if (weeklyPaid[m.id] || m.paidThisWeek) return;
     if (!isTreasurer && m.name.toLowerCase() !== myName.toLowerCase()) { alert(language === "sw" ? "Unaweza kujilipia wewe tu." : "You can only pay for yourself."); return; }
     const confirmPay = window.confirm(language === "sw" ? `M-Pesa STK Push?\n\n${m.name} atalipa KES ${settings.weeklyAmount.toLocaleString()}` : `Simulate M-Pesa STK Push?\n\n${m.name} will pay KES ${settings.weeklyAmount.toLocaleString()}`);
     if (!confirmPay) return;
@@ -315,13 +315,12 @@ const notPaid = members.filter(m => !isPaid(m));
     setReceipt({ title: `${t.week} ${weekNumber} Payment`, name: m.name, amount: settings.weeklyAmount, type: "contribution", code: "QK" + Math.floor(1000000 + Math.random()*9000000), extra: "M-Pesa Confirmed ✅" });
   };
 
-  const startNewWeek = () => {
-    if (!isTreasurer) { alert(language === "sw" ? "Mweka Hazina tu anaweza kuanza wiki mpya." : "Only Treasurer can start a new week."); return; }
-    if (!window.confirm(language === "sw" ? `Anza Wiki ${Number(weekNumber)+1}?` : `Start Week ${Number(weekNumber)+1}?`)) return;
-    notPaid.forEach(m => addHistory(`⚠️ ${m.name} missed ${t.week} ${weekNumber} — Fine KES ${settings.fineAmount}`, "fine"));
-    const nw = Number(weekNumber)+1; setWeekNumber(String(nw)); localStorage.setItem("chama_week", String(nw));
-    saveWeekly({}); addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
-  };
+     const nw = Number(weekNumber)+1; setWeekNumber(String(nw)); localStorage.setItem("chama_week", String(nw));
+    saveWeekly({});
+    // Clear paidThisWeek on all members so next week starts at 0
+    const cleared = members.map(x => ({ ...x, paidThisWeek: false }));
+    saveMembers(cleared);
+    addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
 
   const sendReminder = (m) => {
     const msg = language === "sw"
