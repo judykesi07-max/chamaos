@@ -323,6 +323,30 @@ function App() {
     setReceipt({ title: `${t.week} ${weekNumber} Payment`, name: m.name, amount: weeklyAmt, type: "contribution", code: "QK" + Math.floor(1000000 + Math.random()*9000000), extra: "M-Pesa Confirmed ✅" });
   };
 
+  const addMember = () => {
+    const clean = name.trim();
+    if (!clean) return alert(language === "sw" ? "Weka jina la mwanachama" : "Enter the member's name");
+    if (!phone.trim()) return alert(language === "sw" ? "Weka namba ya simu" : "Enter the phone number");
+    const firstAmt = Number(String(amount).replace(/,/g, ""));
+    if (amount === "" || isNaN(firstAmt) || firstAmt < 0) return alert(language === "sw" ? "Weka mchango wa kwanza (namba tu)" : "Enter the first contribution, numbers only");
+    if (members.some(m => m.name.toLowerCase() === clean.toLowerCase())) {
+      return alert(language === "sw" ? `${clean} tayari yupo!` : `${clean} is already a member!`);
+    }
+    // First contribution counts as this week's payment if it covers the weekly amount
+    const newMember = {
+      id: Date.now(),
+      name: clean,
+      phone: phone.trim(),
+      totalContributed: firstAmt,
+      loanBalance: 0,
+      paidThisWeek: firstAmt >= weeklyAmt
+    };
+    saveMembers([...members, newMember]);
+    addHistory(`👤 ${clean} joined with KES ${firstAmt.toLocaleString()}`, "member");
+    setName(""); setPhone(""); setAmount("");
+    setSearch(""); // so the new member is never hidden by an old search
+  };
+
   const startNewWeek = () => {
     if (!isTreasurer) { alert(language === "sw" ? "Mweka Hazina tu anaweza kuanza wiki mpya." : "Only Treasurer can start a new week."); return; }
     if (!window.confirm(language === "sw" ? `Anza Wiki ${Number(weekNumber)+1}?` : `Start Week ${Number(weekNumber)+1}?`)) return;
@@ -585,35 +609,15 @@ function App() {
               </div>
             )}
             {isTreasurer && (
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                // Block duplicate member; first contribution counts as this week's payment if it covers the weekly amount
-                const clean = name.trim();
-                if (members.some(m => m.name.toLowerCase() === clean.toLowerCase())) {
-                  alert(language === "sw" ? `${clean} tayari yupo!` : `${clean} is already a member!`);
-                  return;
-                }
-                const firstAmt = Number(amount) || 0;
-                const newMember = {
-                  id: Date.now(),
-                  name: clean,
-                  phone,
-                  totalContributed: firstAmt,
-                  loanBalance: 0,
-                  paidThisWeek: firstAmt >= weeklyAmt
-                };
-                saveMembers([...members, newMember]);
-                addHistory(`👤 ${clean} joined with KES ${firstAmt.toLocaleString()}`, "member");
-                setName(""); setPhone(""); setAmount("");
-              }} style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
+              <div style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
                 <h3 style={{ margin: "0 0 12px" }}>{t.addMember}</h3>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <input placeholder={language === "sw" ? "Jina kamili" : "Full name"} value={name} onChange={e=>setName(e.target.value)} required style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
-                  <input placeholder="Phone 07..." value={phone} onChange={e=>setPhone(e.target.value)} required style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
-                  <input placeholder={language === "sw" ? "Mchango wa kwanza" : "First contribution"} type="number" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
-                  <button style={{ background: "#11998e", color: "white", border: "none", padding: "12px 18px", borderRadius: "12px", fontWeight: "800" }}>+ {language === "sw" ? "Ongeza" : "Add"}</button>
+                  <input placeholder={language === "sw" ? "Jina kamili" : "Full name"} value={name} onChange={e=>setName(e.target.value)} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
+                  <input placeholder="Phone 07..." value={phone} onChange={e=>setPhone(e.target.value)} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
+                  <input placeholder={language === "sw" ? "Mchango wa kwanza" : "First contribution"} inputMode="numeric" value={amount} onChange={e=>setAmount(e.target.value)} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid #E6EDE8" }} />
+                  <button type="button" onClick={addMember} style={{ background: "#11998e", color: "white", border: "none", padding: "12px 18px", borderRadius: "12px", fontWeight: "800", cursor: "pointer" }}>+ {language === "sw" ? "Ongeza" : "Add"}</button>
                 </div>
-              </form>
+              </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "14px", marginTop: "16px" }}>
               {sorted.map((m) => {
