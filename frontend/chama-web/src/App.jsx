@@ -102,7 +102,7 @@ function App() {
   };
   const t = T[language];
 
-  // ===== FIX: PER-CHAMA CORE TEAM & PASSCODES =====
+  // ===== PER-CHAMA CORE TEAM & PASSCODES =====
   const [allCoreTeams, setAllCoreTeams] = useState(() => {
     try {
       const byChama = JSON.parse(localStorage.getItem("chama_coreTeams_by_chama") || "{}");
@@ -152,9 +152,7 @@ function App() {
     return localStorage.getItem(`chama_trusted_${key}_${role}_${personName.toLowerCase()}`) === "yes";
   };
 
-  // ===== FIX 2: STRICT ROLE CHECK - Member can NEVER approve =====
-  // Old bug: if seat was "" (vacant), anyone claiming role was treated as leader
-  // New: you are leader ONLY if coreTeam says your exact name
+  // ===== STRICT ROLE CHECK - Member can NEVER approve =====
   const isTreasurer = myRole === "treasurer" && !!myName && !!coreTeam.treasurer && coreTeam.treasurer.toLowerCase() === myName.toLowerCase();
   const isChair = myRole === "chair" && !!myName && !!coreTeam.chair && coreTeam.chair.toLowerCase() === myName.toLowerCase();
   const isSecretary = myRole === "secretary" && !!myName && !!coreTeam.secretary && coreTeam.secretary.toLowerCase() === myName.toLowerCase();
@@ -190,7 +188,7 @@ function App() {
   const saveLoans = (l) => { setLoanRequests(l); localStorage.setItem("chama_loans", JSON.stringify(l)); };
   const saveMerry = (o, idx) => { setMerryOrder(o); setMerryIndex(idx); localStorage.setItem("chama_merry", JSON.stringify(o)); localStorage.setItem("chama_merry_index", String(idx)); };
 
-  // ===== FIX 3: DEDUPE MEMBERS - prevents resign / double-add creating ghost members =====
+  // ===== DEDUPE MEMBERS - prevents resign / double-add creating ghost members =====
   const saveMembers = (list) => {
     const seen = new Set();
     const deduped = [];
@@ -207,19 +205,29 @@ function App() {
   };
   useEffect(() => { loadMembers(); }, []);
 
+  // Always a real number, even if old saved settings stored it as text
+  const weeklyAmt = Number(settings.weeklyAmount) || 0;
+
   const total = members.reduce((s, m) => s + (m.totalContributed || 0), 0);
   const totalLoans = members.reduce((s, m) => s + (m.loanBalance || 0), 0);
-  const isPaid = (m) => !!m.paidThisWeek || (m.totalContributed || 0) >= Number(weekNumber) * settings.weeklyAmount;
-const paidCount = members.filter(isPaid).length;
-const notPaid = members.filter(m => !isPaid(m));
-  const expectedThisWeek = members.length * settings.weeklyAmount;
-  // FIX 1: Collected = paidCount * weeklyAmount ONLY. No double counting.
-  const collectedThisWeek = paidCount * settings.weeklyAmount;
 
+  // ===== PAID: explicit flag OR Saved covers this week (backup for old members) =====
+  const isPaid = (m) => !!m.paidThisWeek || (m.totalContributed || 0) >= Number(weekNumber) * weeklyAmt;
+
+  const paidCount = members.filter(isPaid).length;
+  const notPaid = members.filter(m => !isPaid(m));
+  const expectedThisWeek = members.length * weeklyAmt;
+  // Collected = paidCount * weeklyAmount ONLY. No double counting.
+  const collectedThisWeek = paidCount * weeklyAmt;
+
+  // Functional update so several addHistory() calls in one click don't overwrite each other
   const addHistory = (text, type) => {
-    const entry = { id: Date.now(), text, type, time: new Date().toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) };
-    const updated = [entry, ...history].slice(0, 200);
-    setHistory(updated); localStorage.setItem("chama_history", JSON.stringify(updated));
+    const entry = { id: Date.now() + Math.random(), text, type, time: new Date().toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) };
+    setHistory(prev => {
+      const updated = [entry, ...prev].slice(0, 200);
+      localStorage.setItem("chama_history", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const saveMyName = () => {
@@ -261,7 +269,7 @@ const notPaid = members.filter(m => !isPaid(m));
     if (tempRole === "treasurer" && !newCore.treasurer) { newCore.treasurer = cleanName; claimed = true; }
     if (tempRole === "chair" && !newCore.chair) { newCore.chair = cleanName; claimed = true; }
     if (tempRole === "secretary" && !newCore.secretary) { newCore.secretary = cleanName; claimed = true; }
-    // FIX 3: Login NEVER adds a member. Only Treasurer Add Member form adds members.
+    // Login NEVER adds a member. Only Treasurer Add Member form adds members.
     if (claimed) { saveCoreTeam(newCore, finalChamaKey); addHistory(`👑 ${cleanName} became new ${tempRole.toUpperCase()}`, "member"); }
   };
 
@@ -285,7 +293,7 @@ const notPaid = members.filter(m => !isPaid(m));
     saveCoreTeam(newCore, myChamaName);
     setMyRole("member");
     localStorage.setItem("chama_myRole", "member");
-    // FIX 3: Resign NEVER touches members list. No new member added.
+    // Resign NEVER touches members list. No new member added.
     addHistory(`📣 ${myName} RESIGNED as ${roleName}`, "member");
     alert(language === "sw" ? `Umejiuzulu kama ${roleName}. Asante! 🙏 Nafasi sasa ni wazi.` : `You have resigned as ${roleName}. Thank you! 🙏 Seat is now vacant.`);
   };
@@ -299,22 +307,23 @@ const notPaid = members.filter(m => !isPaid(m));
   };
 
   const downloadPDF = () => {
-    const report = `<html><head><title>${settings.chamaName} Report</title><style>body{font-family:Arial;padding:30px;color:#222}h1{color:#11998e}table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #ddd;padding:10px;text-align:left}th{background:#11998e;color:white}.box{background:#E8F8F0;padding:15px;border-radius:10px;margin:10px 0}</style></head><body><h1>💚 ${settings.chamaName}</h1><p>Location: ${settings.location} • ${t.week} ${weekNumber} • Date: ${new Date().toLocaleDateString("en-KE")}</p><div class="box"><b>${t.currentCore}</b> ${t.treasurer}: ${coreTeam.treasurer || t.vacant} | ${t.chair}: ${coreTeam.chair || t.vacant} | ${t.secretary}: ${coreTeam.secretary || t.vacant}<br><b>${t.savings}:</b> KES ${total.toLocaleString()}<br><b>${t.loansOut}</b> KES ${totalLoans.toLocaleString()}</div><h2>👥 Members</h2><table><tr><th>Name</th><th>Phone</th><th>Saved</th><th>Loan Owed</th><th>This Week</th></tr>${members.map(m => `<tr><td>${m.name}</td><td>${m.phone}</td><td>KES ${(m.totalContributed||0).toLocaleString()}</td><td>KES ${(m.loanBalance||0).toLocaleString()}</td><td>${weeklyPaid[m.id] ? t.paid : t.notPaid}</td></tr>`).join("")}</table></body></html>`;
+    const report = `<html><head><title>${settings.chamaName} Report</title><style>body{font-family:Arial;padding:30px;color:#222}h1{color:#11998e}table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #ddd;padding:10px;text-align:left}th{background:#11998e;color:white}.box{background:#E8F8F0;padding:15px;border-radius:10px;margin:10px 0}</style></head><body><h1>💚 ${settings.chamaName}</h1><p>Location: ${settings.location} • ${t.week} ${weekNumber} • Date: ${new Date().toLocaleDateString("en-KE")}</p><div class="box"><b>${t.currentCore}</b> ${t.treasurer}: ${coreTeam.treasurer || t.vacant} | ${t.chair}: ${coreTeam.chair || t.vacant} | ${t.secretary}: ${coreTeam.secretary || t.vacant}<br><b>${t.savings}:</b> KES ${total.toLocaleString()}<br><b>${t.loansOut}</b> KES ${totalLoans.toLocaleString()}</div><h2>👥 Members</h2><table><tr><th>Name</th><th>Phone</th><th>Saved</th><th>Loan Owed</th><th>This Week</th></tr>${members.map(m => `<tr><td>${m.name}</td><td>${m.phone}</td><td>KES ${(m.totalContributed||0).toLocaleString()}</td><td>KES ${(m.loanBalance||0).toLocaleString()}</td><td>${isPaid(m) ? t.paid : t.notPaid}</td></tr>`).join("")}</table></body></html>`;
     const w = window.open("", "_blank"); w.document.write(report); w.document.close(); setTimeout(() => w.print(), 500);
   };
 
- const payThisWeek = (m) => {
-       if (m.paidThisWeek) return;
+  const payThisWeek = (m) => {
+    // Same check as the PAID badge, so nobody can pay twice
+    if (isPaid(m)) return;
     if (!isTreasurer && m.name.toLowerCase() !== myName.toLowerCase()) { alert(language === "sw" ? "Unaweza kujilipia wewe tu." : "You can only pay for yourself."); return; }
-    const confirmPay = window.confirm(language === "sw" ? `M-Pesa STK Push?\n\n${m.name} atalipa KES ${settings.weeklyAmount.toLocaleString()}` : `Simulate M-Pesa STK Push?\n\n${m.name} will pay KES ${settings.weeklyAmount.toLocaleString()}`);
+    const confirmPay = window.confirm(language === "sw" ? `M-Pesa STK Push?\n\n${m.name} atalipa KES ${weeklyAmt.toLocaleString()}` : `Simulate M-Pesa STK Push?\n\n${m.name} will pay KES ${weeklyAmt.toLocaleString()}`);
     if (!confirmPay) return;
-    const updatedMembers = members.map(x => x.id === m.id ? { ...x, totalContributed: (x.totalContributed || 0) + settings.weeklyAmount, paidThisWeek: true } : x);
+    const updatedMembers = members.map(x => x.id === m.id ? { ...x, totalContributed: (x.totalContributed || 0) + weeklyAmt, paidThisWeek: true } : x);
     saveMembers(updatedMembers);
-    addHistory(`💚 ${m.name} PAID ${t.week} ${weekNumber} — KES ${settings.weeklyAmount.toLocaleString()}`, "contribution");
-    setReceipt({ title: `${t.week} ${weekNumber} Payment`, name: m.name, amount: settings.weeklyAmount, type: "contribution", code: "QK" + Math.floor(1000000 + Math.random()*9000000), extra: "M-Pesa Confirmed ✅" });
+    addHistory(`💚 ${m.name} PAID ${t.week} ${weekNumber} — KES ${weeklyAmt.toLocaleString()}`, "contribution");
+    setReceipt({ title: `${t.week} ${weekNumber} Payment`, name: m.name, amount: weeklyAmt, type: "contribution", code: "QK" + Math.floor(1000000 + Math.random()*9000000), extra: "M-Pesa Confirmed ✅" });
   };
 
-      const startNewWeek = () => {
+  const startNewWeek = () => {
     if (!isTreasurer) { alert(language === "sw" ? "Mweka Hazina tu anaweza kuanza wiki mpya." : "Only Treasurer can start a new week."); return; }
     if (!window.confirm(language === "sw" ? `Anza Wiki ${Number(weekNumber)+1}?` : `Start Week ${Number(weekNumber)+1}?`)) return;
     notPaid.forEach(m => addHistory(`⚠️ ${m.name} missed ${t.week} ${weekNumber} — Fine KES ${settings.fineAmount}`, "fine"));
@@ -325,10 +334,11 @@ const notPaid = members.filter(m => !isPaid(m));
     saveMembers(members.map(x => ({ ...x, paidThisWeek: false })));
     addHistory(`📅 New Week Started — ${t.week} ${nw}`, "member");
   };
+
   const sendReminder = (m) => {
     const msg = language === "sw"
-      ? `Habari ${m.name}, hii ni ${settings.chamaName}. HUJALIPA KES ${settings.weeklyAmount.toLocaleString()} kwa ${t.week} ${weekNumber} (${settings.meetingDay}). Tafadhali lipa leo. Asante! 💚`
-      : `Hi ${m.name}, this is ${settings.chamaName}. You have NOT paid KES ${settings.weeklyAmount.toLocaleString()} for ${t.week} ${weekNumber} (${settings.meetingDay}). Please pay today. Thank you! 💚`;
+      ? `Habari ${m.name}, hii ni ${settings.chamaName}. HUJALIPA KES ${weeklyAmt.toLocaleString()} kwa ${t.week} ${weekNumber} (${settings.meetingDay}). Tafadhali lipa leo. Asante! 💚`
+      : `Hi ${m.name}, this is ${settings.chamaName}. You have NOT paid KES ${weeklyAmt.toLocaleString()} for ${t.week} ${weekNumber} (${settings.meetingDay}). Please pay today. Thank you! 💚`;
     window.open(`https://wa.me/${m.phone.replace(/^0/, "254")}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -350,7 +360,7 @@ const notPaid = members.filter(m => !isPaid(m));
   };
 
   const approveLoan = (req) => {
-    // FIX 2: Double-check - Member can NEVER approve, even if UI shows button
+    // Member can NEVER approve, even if UI shows button
     if (!isTreasurer && !isChair) { alert(language === "sw" ? "Mweka Hazina / Mwenyekiti tu wanaweza kukubali mikopo." : "Only Treasurer / Chair can approve loans."); return; }
     const updatedMembers = members.map(x => x.name === req.name ? { ...x, loanBalance: (x.loanBalance || 0) + req.principal } : x);
     saveMembers(updatedMembers);
@@ -536,7 +546,7 @@ const notPaid = members.filter(m => !isPaid(m));
         {merryOrder.length > 0 && (
           <div style={{ background: "linear-gradient(135deg, #f6d365, #fda085)", color: "#5A3A00", padding: "16px 18px", borderRadius: "18px", marginTop: "16px" }}>
             <div style={{ fontSize: "12px", fontWeight: "800" }}>{t.merryThisWeek}</div>
-            <div style={{ fontSize: "20px", fontWeight: "900", marginTop: "4px" }}>{language === "sw" ? `Ni ${merryOrder[merryIndex]}${t.turn} ${(members.length * settings.weeklyAmount).toLocaleString()}` : `It's ${merryOrder[merryIndex]}${t.turn} ${(members.length * settings.weeklyAmount).toLocaleString()}`}</div>
+            <div style={{ fontSize: "20px", fontWeight: "900", marginTop: "4px" }}>{language === "sw" ? `Ni ${merryOrder[merryIndex]}${t.turn} ${(members.length * weeklyAmt).toLocaleString()}` : `It's ${merryOrder[merryIndex]}${t.turn} ${(members.length * weeklyAmt).toLocaleString()}`}</div>
             <div style={{ fontSize: "13px", marginTop: "2px" }}>{t.next} {merryOrder[(merryIndex+1)%merryOrder.length]}</div>
           </div>
         )}
@@ -577,22 +587,22 @@ const notPaid = members.filter(m => !isPaid(m));
             {isTreasurer && (
               <form onSubmit={(e) => {
                 e.preventDefault();
-                // FIX 1 + 3: Block duplicate member, and first contribution = this week's payment
+                // Block duplicate member; first contribution counts as this week's payment if it covers the weekly amount
                 const clean = name.trim();
                 if (members.some(m => m.name.toLowerCase() === clean.toLowerCase())) {
                   alert(language === "sw" ? `${clean} tayari yupo!` : `${clean} is already a member!`);
                   return;
                 }
                 const firstAmt = Number(amount) || 0;
-                   const newMember = { 
-  id: Date.now(), 
-  name: clean, 
-  phone, 
-  totalContributed: firstAmt, 
-  loanBalance: 0,
-  paidThisWeek: firstAmt >= settings.weeklyAmount
-};
-saveMembers([...members, newMember]);
+                const newMember = {
+                  id: Date.now(),
+                  name: clean,
+                  phone,
+                  totalContributed: firstAmt,
+                  loanBalance: 0,
+                  paidThisWeek: firstAmt >= weeklyAmt
+                };
+                saveMembers([...members, newMember]);
                 addHistory(`👤 ${clean} joined with KES ${firstAmt.toLocaleString()}`, "member");
                 setName(""); setPhone(""); setAmount("");
               }} style={{ background: cardBg, padding: "18px", borderRadius: "18px", marginTop: "14px" }}>
@@ -608,7 +618,7 @@ saveMembers([...members, newMember]);
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "14px", marginTop: "16px" }}>
               {sorted.map((m) => {
                 const isMe = myName && m.name.toLowerCase()===myName.toLowerCase();
-                               const paid = !!m.paidThisWeek || (m.totalContributed || 0) >= Number(weekNumber) * settings.weeklyAmount;
+                const paid = isPaid(m);
                 const canPayThis = !paid && (isTreasurer || isMe);
                 return (
                   <div key={m.id} style={{ background: cardBg, padding: "18px", borderRadius: "20px", border: isMe ? "2px solid #11998e" : "1px solid #EEE" }}>
@@ -617,7 +627,7 @@ saveMembers([...members, newMember]);
                       <div><b style={{ fontSize: "16px" }}>{m.name} {isMe ? t.youWord : ""}</b><div style={{ color: subText, fontSize: "13px" }}>📱 {m.phone} • {t.saved} {(m.totalContributed||0).toLocaleString()}</div></div>
                       <span style={{ background: paid ? "#E8F8F0" : "#FFE8E8", color: paid ? "#0F7A5A" : "#C0392B", padding: "6px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "800", height: "fit-content" }}>{paid ? t.paid : t.notPaid}</span>
                     </div>
-                    <div style={{ fontSize: "13px", marginTop: "10px", color: subText }}>{t.week} {weekNumber}: {paid ? `${language === "sw" ? "Amelipa" : "Paid"} KES ${settings.weeklyAmount.toLocaleString()} ✅` : `${t.owes} KES ${settings.weeklyAmount.toLocaleString()}`}</div>
+                    <div style={{ fontSize: "13px", marginTop: "10px", color: subText }}>{t.week} {weekNumber}: {paid ? `${language === "sw" ? "Amelipa" : "Paid"} KES ${weeklyAmt.toLocaleString()} ✅` : `${t.owes} ${weeklyAmt.toLocaleString()}`}</div>
                     <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                       {canPayThis && <button onClick={() => payThisWeek(m)} style={{ flex: 1, background: "linear-gradient(135deg, #11998e, #38ef7d)", color: "white", border: "none", padding: "12px", borderRadius: "12px", fontWeight: "800" }}>{t.payNow}</button>}
                       {paid && <button disabled style={{ flex: 1, background: "#E8F8F0", color: "#0F7A5A", border: "none", padding: "12px", borderRadius: "12px", fontWeight: "800" }}>{t.paidThisWeek}</button>}
@@ -683,7 +693,7 @@ saveMembers([...members, newMember]);
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
                   {merryOrder.map((n, i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "12px", borderRadius: "12px", background: i===merryIndex ? "#FFF3D6" : "#F5F5F5", fontWeight: i===merryIndex ? "800" : "400", color: "#222" }}>
-                      <span>{i+1}. {n} {i===merryIndex ? t.thisWeek : ""}</span><span>KES {(members.length * settings.weeklyAmount).toLocaleString()}</span>
+                      <span>{i+1}. {n} {i===merryIndex ? t.thisWeek : ""}</span><span>KES {(members.length * weeklyAmt).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
