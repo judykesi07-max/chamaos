@@ -1,20 +1,19 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      manifest: false, // we use our own manifest.json
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      }
-    })
+      registerType: "autoUpdate",
+      manifest: {
+        name: "ChamaSmart",
+        short_name: "ChamaSmart",
+        theme_color: "#11998e",
+        background_color: "#ffffff",
+        display: "standalone",
+      },
+    }),
   ],
-  server: {
-    host: true,
-    port: 5173
-  }
-})
+});
